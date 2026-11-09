@@ -1,0 +1,546 @@
+/*
+  A ward board is read at a glance from across a room, so: dense table, tabular numbers,
+  status always spelled out in words (colour is a second channel, never the only one),
+  one interactive colour (clinical blue) kept apart from the alarm colours.
+*/
+:root {
+  --bg: #f6f5f1;
+  --surface: #ffffff;
+  --ink: #15171a;
+  --ink-2: #555b64;
+  --rule: #dcdad3;
+  --rule-strong: #b9b6ad;
+  --action: #1f5fad;
+  --action-ink: #ffffff;
+  --crit: #b42318;
+  --crit-bg: #fdecea;
+  --warn: #8a5300;
+  --warn-bg: #fdf1dc;
+  --zone-crit: rgba(180, 35, 24, 0.1);
+  --zone-warn: rgba(204, 133, 0, 0.12);
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111315;
+    --surface: #181b1e;
+    --ink: #e9eaec;
+    --ink-2: #a3a9b1;
+    --rule: #2a2e33;
+    --rule-strong: #3d434a;
+    --action: #6aa5ef;
+    --action-ink: #0d1116;
+    --crit: #ff8a7f;
+    --crit-bg: #3a1714;
+    --warn: #f2b44d;
+    --warn-bg: #342610;
+    --zone-crit: rgba(255, 110, 96, 0.14);
+    --zone-warn: rgba(242, 180, 77, 0.12);
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 15px/1.5 var(--sans);
+}
+h1,
+h2,
+h3,
+p,
+ol,
+ul,
+figure {
+  margin: 0;
+}
+ol,
+ul {
+  padding: 0;
+  list-style: none;
+}
+a {
+  color: var(--action);
+}
+:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.mono,
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.muted {
+  color: var(--ink-2);
+}
+
+/* ---------- top bar ---------- */
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule);
+}
+.brand strong {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin-right: 0.75rem;
+}
+.brand span {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}
+.conn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.875rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rule-strong);
+}
+.conn-live .dot {
+  background: #1f8a4c;
+}
+.conn-reconnecting .dot,
+.conn-waking .dot {
+  background: var(--warn);
+}
+
+.waking {
+  max-width: 34rem;
+  margin: 18vh auto;
+  padding: 0 1.25rem;
+}
+.waking h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+.waking p {
+  margin-top: 0.5rem;
+  color: var(--ink-2);
+}
+
+/* ---------- layout ---------- */
+.layout {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  align-items: start;
+}
+@media (min-width: 1100px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+  }
+  .queue {
+    position: sticky;
+    top: 1.25rem;
+    max-height: calc(100vh - 2.5rem);
+    overflow: auto;
+  }
+}
+.main-col {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+/* ---------- ward table ---------- */
+.ward-scroll {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+.ward {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+.ward th,
+.ward td {
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+.ward thead th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  background: var(--surface);
+}
+.ward .num {
+  text-align: right;
+  font-size: 1rem;
+}
+.ward tbody tr {
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.ward tbody tr:hover {
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+}
+.ward tbody tr.is-selected {
+  background: color-mix(in srgb, var(--action) 9%, transparent);
+}
+.ward tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.bed {
+  font: 500 0.9375rem var(--mono);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+.who {
+  font-weight: 500;
+}
+.who span {
+  display: block;
+  font-weight: 400;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.v-warning {
+  color: var(--warn);
+  font-weight: 500;
+}
+.v-critical {
+  color: var(--crit);
+  font-weight: 600;
+}
+.trend {
+  color: var(--ink-2);
+}
+.spark {
+  display: block;
+}
+.status {
+  font-size: 0.875rem;
+}
+.s-critical {
+  color: var(--crit);
+  font-weight: 600;
+}
+.s-warning {
+  color: var(--warn);
+  font-weight: 500;
+}
+.s-normal {
+  color: var(--ink-2);
+}
+.pending {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+/* ---------- patient panel ---------- */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1rem 1.25rem 1.25rem;
+}
+.panel-head h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.panel-head p {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}
+.charts {
+  margin-top: 1rem;
+  display: grid;
+  gap: 1.1rem 2rem;
+}
+@media (min-width: 760px) {
+  .charts {
+    grid-template-columns: 1fr 1fr;
+  }
+  .charts .chart:first-child {
+    grid-column: 1 / -1;
+  }
+}
+.chart figcaption {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.875rem;
+  color: var(--ink-2);
+  margin-bottom: 0.3rem;
+}
+.chart-now {
+  font: 500 1.125rem var(--mono);
+  color: var(--ink);
+}
+.chart-now small {
+  font: 400 0.75rem var(--sans);
+  color: var(--ink-2);
+}
+.chart svg {
+  display: block;
+  width: 100%;
+  height: 96px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.chart:first-child svg {
+  height: 120px;
+}
+.zone.z-warning,
+.swatch.z-warning {
+  fill: var(--zone-warn);
+  background: var(--zone-warn);
+}
+.zone.z-critical,
+.swatch.z-critical {
+  fill: var(--zone-crit);
+  background: var(--zone-crit);
+}
+.line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+.line-dia {
+  stroke: var(--ink-2);
+  stroke-dasharray: 3 3;
+}
+.chart-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6875rem;
+  color: var(--ink-2);
+  margin-top: 0.2rem;
+}
+.legend {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+.swatch {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  vertical-align: -1px;
+  margin: 0 0.25rem 0 0.5rem;
+  border: 1px solid var(--rule);
+}
+.swatch:first-child {
+  margin-left: 0;
+}
+
+/* ---------- alert queue ---------- */
+.queue {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1rem;
+}
+.queue h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.count {
+  font: 500 0.8125rem var(--mono);
+  padding: 0.05rem 0.45rem;
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+}
+.empty {
+  margin-top: 0.6rem;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}
+.alerts {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.6rem;
+}
+.alert {
+  padding: 0.7rem 0.8rem 0.8rem;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+}
+.a-critical {
+  background: var(--crit-bg);
+  border-color: color-mix(in srgb, var(--crit) 35%, transparent);
+}
+.a-warning {
+  background: var(--warn-bg);
+  border-color: color-mix(in srgb, var(--warn) 30%, transparent);
+}
+.alert-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+.a-critical .level {
+  color: var(--crit);
+  font-weight: 600;
+}
+.a-warning .level {
+  color: var(--warn);
+  font-weight: 600;
+}
+.waited {
+  font-family: var(--mono);
+  color: var(--ink-2);
+}
+.alert-what {
+  margin-top: 0.15rem;
+  font-weight: 500;
+}
+.alert-value {
+  font-size: 0.875rem;
+  margin-bottom: 0.6rem;
+}
+.alert-value strong {
+  font: 600 1rem var(--mono);
+}
+.alert-value span {
+  color: var(--ink-2);
+}
+
+.btn {
+  font: 500 0.875rem var(--sans);
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid var(--action);
+  background: var(--action);
+  color: var(--action-ink);
+  cursor: pointer;
+  transition: opacity 120ms ease-out;
+}
+.btn:hover {
+  opacity: 0.88;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.link {
+  font: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--action);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.alert-what .link {
+  color: var(--ink);
+  text-decoration-color: var(--rule-strong);
+}
+
+.ack {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+}
+.ack label {
+  color: var(--ink-2);
+  margin-top: 0.3rem;
+}
+.ack .opt {
+  font-style: italic;
+}
+.ack input,
+.ack textarea {
+  font: 400 0.9375rem var(--sans);
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  resize: vertical;
+}
+.ack input[aria-invalid="true"] {
+  border-color: var(--crit);
+}
+.form-error {
+  color: var(--crit);
+  font-size: 0.8125rem;
+  margin-top: 0.2rem;
+}
+.ack-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.acked-title {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.acked {
+  margin-top: 0.4rem;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+.acked li {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.acked li:last-child {
+  border-bottom: 0;
+}
+.acked q {
+  display: block;
+  font-style: italic;
+}
+
+.foot {
+  padding: 0.5rem 1.25rem 1.5rem;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
